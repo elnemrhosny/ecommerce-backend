@@ -1,6 +1,5 @@
 const express = require('express');
 const pool = require('../db')
-const { v4 : uuidv4 } = require('uuid');
 const commonRepo = require('../functions/common');
 const cartsRepo = require('../functions/carts')
 const authenticationRepo = require('../functions/authentication')

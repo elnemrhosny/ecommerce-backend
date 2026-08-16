@@ -1,9 +1,9 @@
 const Joi = require('joi');
 const pool = require('../db')
-const {v4 : uuidv4} = require('uuid');
 const fs = require("fs");
 const path = require("path");
 const commonRepo = require('../functions/common');
+const {randomUUID} = require('crypto');
 
 const categoryAddSchema = Joi.object({ //using joi library to validate the entry product 
     category_id: Joi.forbidden()
@@ -73,7 +73,7 @@ async function getAllCategories(){
 }
 
 async function createCategory(category){
-  const newId = uuidv4();
+  const newId = randomUUID();
   const params = [newId , category.name , category.description , category.image_url ?? null]
   const [result] = await pool.query('INSERT INTO categories (id , name , description , image_url) VALUES (UUID_TO_BIN(?), ? , ? , ?)' , params);
   if(result.affectedRows === 0) return undefined;

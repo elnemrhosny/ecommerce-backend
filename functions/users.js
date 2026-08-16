@@ -1,5 +1,5 @@
 const Joi = require("Joi")
-const {v4 : uuidv4} = require('uuid');
+const {randomUUID} = require('crypto');
 const bcrypt = require('bcrypt')
 const pool = require('../db')
 
@@ -111,7 +111,7 @@ const runValidation = function(schema , data){
 async function registerUser(user){
     const {name , email , password} = user;
     const role = 'customer';
-    const newId = uuidv4();
+    const newId = randomUUID();
     const passwordHash = await bcrypt.hash(password , 12); //hashing password
     const [result] = await pool.query('INSERT INTO users (id , name , email , password_hash , role) VALUES(UUID_TO_BIN(?) , ? , ? , ? , ?)' , [newId , name , email , passwordHash , role]);
     if(result.affectedRows === 0) return undefined
@@ -157,8 +157,8 @@ async function getUserByEmail(email){
 
 async function addVerificationToken(user_id){
     await pool.query('DELETE FROM email_verifications WHERE user_id = UUID_TO_BIN(?)' , [user_id]);
-    const token = uuidv4();
-    const newId = uuidv4();
+    const token = randomUUID();
+    const newId = randomUUID();
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); //1 hour
     const [result] = await pool.query('INSERT INTO email_verifications (id , user_id , token , expires_at) VALUES (UUID_TO_BIN(?) , UUID_TO_BIN(?) , ? , ?)' , [newId , user_id , token , expiresAt]);
     if(result.affectedRows === 0 ) return undefined;
@@ -175,7 +175,7 @@ async function verifyToken(token){
 
 async function registerGoogle(user) {
     const {name , email , googleId} = user;
-    const newId = uuidv4();
+    const newId = randomUUID();
       await pool.query(
         `INSERT INTO users (id, name, email, role, auth_provider, google_id, email_verified)
          VALUES (UUID_TO_BIN(?), ?, ?, 'customer', 'google', ?, true)`,

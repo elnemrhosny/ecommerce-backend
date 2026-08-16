@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
-const { v4 : uuidv4 } = require('uuid');
 const commonRepo = require('../functions/common');
 const cartsRepo = require('../functions/carts');
 const usersRepo = require('./users');

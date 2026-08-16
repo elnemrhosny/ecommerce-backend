@@ -1,4 +1,4 @@
-const {v4 : uuidv4} = require('uuid');
+const {randomUUID} = require('crypto');
 const pool = require('../db')
 
 
@@ -20,7 +20,7 @@ const sortOrders = orders =>{
 }
 
 async function createOrder(user_id , total_price){
-    const newId = uuidv4();
+    const newId = randomUUID();
     const [result] = await pool.query(
       `INSERT INTO orders (id, user_id, total_amount, order_status, payment_status , shipping_address)
        VALUES (UUID_TO_BIN(?), UUID_TO_BIN(?), ?, 'pending', 'pending' , 'Moharem Bek')`,
@@ -33,7 +33,7 @@ async function createOrder(user_id , total_price){
 async function createOrderItems(cart , order_id){
     const ids = [];
     for (const item of cart.items) {
-        const newId = uuidv4();
+        const newId = randomUUID();
         await pool.query(
           `INSERT INTO order_items (id, order_id, product_id, product_name, product_price , product_image_url, quantity)
            VALUES (UUID_TO_BIN(?), UUID_TO_BIN(?), UUID_TO_BIN(?), ?, ?, ? ,?)`,

@@ -1,5 +1,5 @@
 const Joi = require('joi');
-const {v4 : uuidv4} = require('uuid');
+const {randomUUID} = require('crypto');
 const pool  = require('../db');
 
 const reviewAddSchema = Joi.object({ //using joi library to validate the entry review 
@@ -103,7 +103,7 @@ const runValidation = function(schema , data){
 
 
 async function addReview(review, user_id , product_id){
-    const newId = uuidv4();
+    const newId = randomUUID();
     const params = [newId , product_id , user_id , review.rating , review.comment];
     const [result] = await pool.query('INSERT INTO reviews (id , product_id , user_id , rating , comment) VALUES (UUID_TO_BIN(?) , UUID_TO_BIN(?) , UUID_TO_BIN(?) , ? , ?)' , params);
     if(result.affectedRows === 0) return undefined;

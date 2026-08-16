@@ -1,6 +1,6 @@
 const Joi = require("joi");
 const pool = require("../db");
-const { v4: uuidv4 } = require("uuid");
+const {randomUUID } = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const commonRepo = require("../functions/common");
@@ -187,7 +187,7 @@ async function getCount(whereClause, params) {
 }
 
 async function createProduct(product) {
-  const newId = uuidv4();
+  const newId = randomUUID();
   const slug = createSlug(product.name); //creates slug and returns false if there is no non space char
   const params = [
     newId, // uuid string
@@ -226,7 +226,7 @@ async function deleteProduct(product_id) {
 }
 
 async function addImage(product_id, image_url) {
-  const newId = uuidv4();
+  const newId = randomUUID();
   await pool.query(
     "INSERT INTO product_images (id, product_id, image_url, sort_order) VALUES (UUID_TO_BIN(?), UUID_TO_BIN(?), ?, 0)",
     [newId, product_id, image_url],

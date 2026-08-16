@@ -1,7 +1,7 @@
 const Joi = require('joi');
 const pool = require('../db')
-const { v4 : uuidv4 } = require('uuid');
 const  commonRepo= require('./common');
+const {randomUUID} = require('crypto');
 
 const quantitySchema = Joi.number().integer().min(1).required().messages({
       'number.base': 'Quantity must be a number',
@@ -39,14 +39,14 @@ async function getCartIdByUserId(user_id){
 }
 
 async function createUserCart(user_id){
-    const newId = uuidv4();
+    const newId = randomUUID();
     const [result] = await pool.query('INSERT INTO carts (id , user_id) VALUES(UUID_TO_BIN(?) , UUID_TO_BIN(?))' , [newId , user_id]);
     if(result.length === 0) return undefined;
     return newId;
 }
 
 async function createGuestCart(){
-    const newId = uuidv4();
+    const newId = randomUUID();
     const [result] = await pool.query('INSERT INTO carts(id , user_id) VALUES(UUID_TO_BIN(?) , NULL)' , [newId]);
     if(result.length === 0) return undefined;
     return newId;
@@ -76,7 +76,7 @@ async function checkProductExistInCart(cart_id , product_id){ //this is for add 
 }
 
 async function addItem(cart_id , product_id){
-    const newId = uuidv4();
+    const newId = randomUUID();
     const [result] =  await pool.query('INSERT INTO cart_items ( id , cart_id , product_id , quantity) VALUES (UUID_TO_BIN(?) , UUID_TO_BIN(?) , UUID_TO_BIN(?) , ?)' , [newId , cart_id ,product_id , 1]); //if all checks pass create the item in the cart
     if(result.affectedRows === 0) return undefined;
     return newId;
