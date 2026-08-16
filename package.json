@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1" , 
-    "start" : "node app.js"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js"
   },
   "allowScripts": {},
   "keywords": [],
@@ -25,6 +25,6 @@
     "mysql2": "^3.23.1",
     "nodemailer": "^9.0.5",
     "stripe": "^22.4.0",
-    "uuid": "^14.0.1"
+    "uuid": "^9.0.1"
   }
 }
