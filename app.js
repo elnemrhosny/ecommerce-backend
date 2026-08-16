@@ -17,7 +17,7 @@ const webhookRouter = require('./routes/webhooks');
 app.use('/webhooks' , webhookRouter)
 app.use(express.json());
 app.use(cors({
-  origin : process.env.CLIENT_URL || 'http://localhost:5173' ,
+  origin : process.env.CLIENT_URL ,
   credentials : true
 }));
 app.use(cookieParser());
