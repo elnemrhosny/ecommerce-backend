@@ -1,4 +1,4 @@
-const Joi = require("Joi")
+const Joi = require("joi")
 const {randomUUID} = require('crypto');
 const bcrypt = require('bcrypt')
 const pool = require('../db')
