@@ -90,7 +90,7 @@ router.post('/callback', async (req, res) => {
     const hmac = req.query.hmac;
     const orderId = obj.special_reference;
     const items = obj.items;
-    const user_id = obj.user_id;
+    const user_id = obj.payment_key_claims?.user_id;
 
     if (!verifyPaymobHMAC(req.body, hmac)) {
       await ordersRepo.deleteOrderItems(orderId);
