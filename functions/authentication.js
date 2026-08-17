@@ -122,15 +122,15 @@ const cartIdentifier = async function(req , res , next){ //identifier for gettin
 
 const addCookieOptions = {
     httpOnly : true , 
-    secure : process.env.NODE_ENV === 'production' , 
-    sameSite : 'lax' ,
+    secure : true, 
+    sameSite : 'none' ,
     maxAge : 7 * 24 * 60 * 60 * 1000 , 
     path : '/'
 }
 const clearCookieOptions = {
     httpOnly : true , 
-    secure : process.env.NODE_ENV === 'production' , 
-    sameSite : 'lax' ,
+    secure : true , 
+    sameSite : 'none' ,
     path : '/'
 }
 
