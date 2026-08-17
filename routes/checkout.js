@@ -44,6 +44,7 @@ function verifyPaymobHMAC(body, hmacReceived) {
     const value = getNested(obj, field);
     return value === null || value === undefined ? '' : String(value);
   }).join('');
+  console.error(concatenated , hmacReceived)
 
   const hmac = crypto
     .createHmac('sha512', process.env.PAYMOB_HMAC_SECRET)
