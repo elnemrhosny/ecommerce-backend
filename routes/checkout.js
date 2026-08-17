@@ -9,10 +9,22 @@ const {createIntention , buildPaymobItems} = require('../functions/paymob');
 const crypto = require('crypto');
 
 
-function verifyPaymobHMAC(payload, hmacReceived) {
-  const keys = Object.keys(payload).sort();
-  const concatenated = keys.map(key => payload[key]).join('');
-  const hmac = crypto.createHmac('sha512', process.env.PAYMOB_HMAC_SECRET).update(concatenated).digest('hex');
+function verifyPaymobHMAC(body, hmacReceived) {
+  const obj = body.obj;
+  if (!obj) return false;
+
+  const keys = Object.keys(obj).sort();
+  const concatenated = keys.map(key => {
+    const value = obj[key];
+    // If value is object (e.g., source_data), stringify it
+    return typeof value === 'object' ? JSON.stringify(value) : String(value);
+  }).join('');
+
+  const hmac = crypto
+    .createHmac('sha512', process.env.PAYMOB_HMAC_SECRET)
+    .update(concatenated)
+    .digest('hex');
+
   return hmac === hmacReceived;
 }
 
@@ -48,12 +60,13 @@ router.post('/create-session', authenticationRepo.authenticateUser, authenticati
 });
 
 
-router.post('/callback', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/callback', async (req, res) => {
     try {
       console.log("entered callback")
     const { obj, type, hmac } = req.body;
     const orderId = obj.special_reference;
     const items = obj.items;
+    
     if (!verifyPaymobHMAC(req.body, hmac)) {
       console.log("hmac verification failed")
       console.error('Invalid HMAC');
