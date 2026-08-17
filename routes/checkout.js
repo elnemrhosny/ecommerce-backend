@@ -103,8 +103,7 @@ router.post('/callback', async (req, res) => {
       const txnId = obj.id;
       // Update order status to paid
       await ordersRepo.updatePaymentStatus(orderId, 'paid');
-      const cart_id = await cartsRepo.getCartIdByUserId(user_id);
-      await cartsRepo.clearCart(cart_id);
+      await cartsRepo.clearCartByOrderId(orderId);
     
     }else{
       await ordersRepo.deleteOrderItems(orderId);
