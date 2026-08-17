@@ -16,17 +16,23 @@ const app = express();
 const webhookRouter = require('./routes/webhooks');
 app.use('/webhooks' , webhookRouter)
 app.use(express.json());
+const allowedOrigins = [process.env.CLIENT_URL , "http://localhost:5173"]
 app.use(cors({
-  origin : [process.env.CLIENT_URL , "http://localhost:5173"] ,
-  credentials : true
+  origin: function (origin, callback) {
+    // allow requests with no origin (like curl, mobile apps, server-to-server)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
 }));
 app.use(cookieParser());
 app.use('/uploads' , express.static('uploads'));
-app.use((err, req, res, next) => {
-  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
-    return res.status(400).json({valid : false ,data : null , messages: ['Invalid JSON in request body. Please check your syntax.'] });
-  }
-});
+
 const productsRoute = require("./routes/products");
 const categoriesRoute = require("./routes/categories");
 const usersRoute = require("./routes/users");
@@ -45,6 +51,11 @@ app.use('/reviews' , reviewsRoute);
 app.use('/orders' , ordersRoute);
 app.use('/checkout' , checkoutRoute);
 app.use('/admin' , adminRoute);
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({valid : false ,data : null , messages: ['Invalid JSON in request body. Please check your syntax.'] });
+  }
+});
 
 
 
