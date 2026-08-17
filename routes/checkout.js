@@ -49,7 +49,6 @@ function verifyPaymobHMAC(body, hmacReceived) {
     .createHmac('sha512', process.env.PAYMOB_HMAC_SECRET)
     .update(concatenated)
     .digest('hex');
-    console.error(hmacReceived , concatenated , hmac)
 
   return hmac === hmacReceived;
 }
@@ -87,15 +86,13 @@ router.post('/create-session', authenticationRepo.authenticateUser, authenticati
 
 router.post('/callback', async (req, res) => {
     try {
-      console.log("entered callback")
     const { obj, type } = req.body;
     const hmac = req.query.hmac;
     const orderId = obj.special_reference;
     const items = obj.items;
+    const user_id = obj.user_id;
 
     if (!verifyPaymobHMAC(req.body, hmac)) {
-      console.log("hmac verification failed")
-      console.error('Invalid HMAC' , hmac);
       await ordersRepo.deleteOrderItems(orderId);
       await ordersRepo.deleteOrder(orderId);
       return res.status(400).send('Invalid signature');
@@ -103,14 +100,13 @@ router.post('/callback', async (req, res) => {
 
     // Only trust the Transaction Processed callback
     if (type === 'TRANSACTION' && obj.success === true) {
-      console.log("payment successfull")
       const txnId = obj.id;
       // Update order status to paid
       await ordersRepo.updatePaymentStatus(orderId, 'paid');
-      await cartsRepo.clearCart(orderId);
+      const cart_id = await cartsRepo.getCartIdByUserId(user_id);
+      await cartsRepo.clearCart(cart_id);
     
     }else{
-      console.log("payment failed");
       await ordersRepo.deleteOrderItems(orderId);
       await ordersRepo.deleteOrder(orderId);
       return res.status(402).json('Payment failed')
