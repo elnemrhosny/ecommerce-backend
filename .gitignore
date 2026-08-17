@@ -3,4 +3,3 @@ uploads/
 .env
 *.log
 .DS_Store
-config/ca.pem

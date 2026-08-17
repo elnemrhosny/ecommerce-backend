@@ -2,6 +2,7 @@
 
 const mysql = require('mysql2/promise');
 require('dotenv').config();
+const fs = require('fs');
 
 
 const pool = mysql.createPool({
@@ -14,7 +15,7 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   ssl : {
-    ca : process.env.AIVEN_CA_CERT ,
+    ca : fs.readFileSync(require('path').join(__dirname, 'config/ca.pem')) ,
     rejectUnauthorized : true,
   }
   // Ensure proper handling of binary UUIDs

@@ -28,7 +28,6 @@ const optionalAuth = async function(req , res , next){ //middleware to authentic
          try{
         const decodedToken = jwt.verify(token , process.env.JWT_SECRET);
         req.user = await usersRepo.getUserById(decodedToken.user_id); //store user info in req.user
-        console.log('in authuser' , req.user)
         res.clearCookie('cart_id' , clearCookieOptions);
         return next();
     }catch(err){

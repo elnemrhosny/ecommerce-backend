@@ -5,7 +5,7 @@ const productsRepo = require("../functions/products");
 const authenticationRepo = require("../functions/authentication");
 const commonRepo = require("../functions/common");
 const usersRepo = require("../functions/users");
-const upload = require("../middlewares/upload");
+const {upload} = require("../middlewares/upload");
 
 const router = express.Router();
 
