@@ -12,7 +12,7 @@ async function createIntention(orderId, amountCents , items, user ,currency = 'E
       payment_methods: [Number(process.env.PAYMOB_CARD_INTEGRATION_ID)], // or include wallet ID if needed
       special_reference: orderId, // store your internal order ID
       user_id : user.user_id,
-      notification_url: `${process.env.BACKEND_URL}/webhooks/callback`, // webhook
+      notification_url: `${process.env.BACKEND_URL}/checkout/callback`, // webhook
       redirection_url:`${process.env.CLIENT_URL}/order-success` ,
       billing_data : {
         first_name : user.name || '' , 
