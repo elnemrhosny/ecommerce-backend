@@ -38,7 +38,7 @@ function getNested(obj, path) {
 
 function verifyPaymobHMAC(body, hmacReceived) {
   const obj = body.obj;
-  if (!obj) return false;
+  if (!obj || !hmacReceived) return false;
 
   const concatenated = HMAC_FIELDS.map(field => {
     const value = getNested(obj, field);
@@ -87,7 +87,8 @@ router.post('/create-session', authenticationRepo.authenticateUser, authenticati
 router.post('/callback', async (req, res) => {
     try {
       console.log("entered callback")
-    const { obj, type, hmac } = req.body;
+    const { obj, type } = req.body;
+    const hmac = req.query.hmac;
     const orderId = obj.special_reference;
     const items = obj.items;
 
