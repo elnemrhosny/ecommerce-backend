@@ -61,7 +61,7 @@ async function checkGuestCartById(cart_id){
 async function getCartById(cart_id){
     const [result] = await pool.query(`SELECT BIN_TO_UUID(ci.id) AS item_id ,  BIN_TO_UUID(p.id) AS product_id , ci.quantity ,  p.name , p.description , p.price , p.image_url , (quantity * price) as total_price FROM cart_items ci JOIN products p ON ci.product_id = p.id WHERE ci.cart_id = UUID_TO_BIN(?)` , [cart_id]);
     const total_price = calculateTotalPrice(result); //getting items from the cart
-    const items = commonRepo.getArrayWithUrl(result);
+    const items = result;
     return {
         cart_id : cart_id , 
         items : items , 

@@ -18,7 +18,7 @@ async function deleteProduct(product_id , user_id){
 async function getWishlist(user_id , offset = 0 , limit = 12){
     const [result] = await pool.query('SELECT BIN_TO_UUID(p.id) AS product_id , BIN_TO_UUID(p.category_id) as category_id , c.name AS category_name  , p.name , p.slug , p.description , p.price , p.stock , p.is_active , p.image_url , TRUE AS is_wishlisted  FROM products p JOIN categories c ON p.category_id = c.id JOIN wishlists w ON p.id = w.product_id WHERE w.user_id = UUID_TO_BIN(?) LIMIT ? OFFSET ?' , [user_id , limit , offset]);
     if(result.length === 0) return undefined;
-    return commonRepo.getArrayWithUrl(result);
+    return result;
 }
 
 async function getCount(user_id) {

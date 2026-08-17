@@ -1,9 +1,8 @@
 const Joi = require('joi');
 const pool = require('../db')
-const fs = require("fs");
-const path = require("path");
 const commonRepo = require('../functions/common');
 const {randomUUID} = require('crypto');
+const { cloudinary } = require('../middlewares/upload');
 
 const categoryAddSchema = Joi.object({ //using joi library to validate the entry product 
     category_id: Joi.forbidden()
@@ -28,7 +27,7 @@ const categoryAddSchema = Joi.object({ //using joi library to validate the entry
 const descriptionSchema = Joi.string().trim().allow('').required().messages({
     'any.required': 'Description is required'
     });
-const imageUrlSchema = Joi.string().uri().allow('').required('');
+const imageUrlSchema = Joi.string().uri().allow('').required();
 
 
 function validateCategoryAdd(category){
@@ -54,28 +53,28 @@ const runValidation = function(schema , data){
 
 //db queries
 async function getCategoryById(category_id){
-  const [category] = await pool.query('SELECT BIN_TO_UUID(id) as category_id , name , description , image_url from categories WHERE id = UUID_TO_BIN(?)' , [category_id]);
+  const [category] = await pool.query('SELECT BIN_TO_UUID(id) as category_id , name , description , image_url , image_public_id FROM categories WHERE id = UUID_TO_BIN(?)' , [category_id]);
   if(category.length === 0) return undefined;
 
-  return commonRepo.getObjectWithUrl(category[0]);
+  return category[0];
 }
 
 async function getCategoryByName(name){
-  const [result] = await pool.query('SELECT BIN_TO_UUID(id) as category_id , name , description , image_url from categories WHERE name = ?' , [name]);
+  const [result] = await pool.query('SELECT BIN_TO_UUID(id) as category_id , name , description , image_url , image_public_id FROM categories WHERE name = ?' , [name]);
   if(result.length === 0) return undefined;
-  return commonRepo.getObjectWithUrl(result[0]);
+  return result[0];
 }
 
 async function getAllCategories(){
-  const [result] = await pool.query('SELECT BIN_TO_UUID(id) as category_id , name , description , image_url  FROM categories');
+  const [result] = await pool.query('SELECT BIN_TO_UUID(id) as category_id , name , description , image_url , image_public_id FROM categories');
   if(result.length === 0 ) return undefined;
-  return commonRepo.getArrayWithUrl(result);
+  return result;
 }
 
 async function createCategory(category){
   const newId = randomUUID();
-  const params = [newId , category.name , category.description , category.image_url ?? null]
-  const [result] = await pool.query('INSERT INTO categories (id , name , description , image_url) VALUES (UUID_TO_BIN(?), ? , ? , ?)' , params);
+  const params = [newId , category.name , category.description , category.image_url ?? null , category.image_public_id ?? null]
+  const [result] = await pool.query('INSERT INTO categories (id , name , description , image_url , image_public_id) VALUES (UUID_TO_BIN(?), ? , ? , ? , ?)' , params);
   if(result.affectedRows === 0) return undefined;
   return newId;
 }
@@ -95,31 +94,32 @@ async function deleteCategory(category_id){
 
 }
 
-async function addImage(category_id , image_url){
-  const [result] = await pool.query('UPDATE categories SET image_url = ? WHERE id = UUID_TO_BIN(?)' , [image_url, category_id]);
+async function addImage(category_id , image_url , public_id){
+  const [result] = await pool.query('UPDATE categories SET image_url = ? , image_public_id = ? WHERE id = UUID_TO_BIN(?)' , [image_url, public_id, category_id]);
   if(result.affectedRows === 0) return undefined;
   return true;
 
 }
 
-async function deleteImage(category_id){
+async function deleteImage(category_id) {
   const category = await getCategoryById(category_id);
-  const [result] = await pool.query('UPDATE categories SET image_url = NULL WHERE id = UUID_TO_BIN(?)' , [category_id]);
-  const filePath = path.join(
-      __dirname,
-      "../uploads",
-      category.image_url.split("/").pop(),
-    );
-    // or construct the full path from the relative URL
-    try {
-      await fs.promises.unlink(filePath);
-    } catch (unlinkErr) {
-      // Log but don't fail the whole deletion if file doesn't exist
-      console.error("Failed to delete file:", unlinkErr);
-    }
-  if(result.affectedRows === 0) return undefined;
-  return true;
+  if (!category) return undefined;
 
+  // Delete from Cloudinary if public_id exists
+  if (category.image_public_id) {
+    try {
+      await cloudinary.uploader.destroy(category.image_public_id);
+    } catch (err) {
+      console.error('Cloudinary delete failed:', err);
+    }
+  }
+
+  // Clear database fields
+  const [result] = await pool.query(
+    'UPDATE categories SET image_url = NULL, image_public_id = NULL WHERE id = UUID_TO_BIN(?)',
+    [category_id]
+  );
+  return result.affectedRows > 0 ? true : undefined;
 }
 module.exports = { validateDescription  ,
   validateImageUrl ,

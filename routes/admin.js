@@ -195,15 +195,16 @@ router.post(
         const product = await productsRepo.getProductById(product_id);
         if(product === undefined) return res.status(404).json("Product Doesn't Exist");
         //insert each uploaded file patch into product_images
-        const hasMainImage = product.image_url;
+        const hasMainImage = product.product.image_url;
         const images = req.files;
         for(const file of images){
-            const image_url = `/uploads/${file.filename}`;
+            const image_url = file.path;
+            const public_id = file.filename; // Assuming the filename is unique and can be used as a public ID
             if(!hasMainImage){
-              await productsRepo.setMainImage(product_id , image_url);
+              await productsRepo.setMainImage(product_id , image_url , public_id);
               product.image_url = image_url;
             }
-            await productsRepo.addImage(product_id , image_url);
+            await productsRepo.addImage(product_id , image_url , public_id);
         }
         res.status(201).json(`${images.length} Images Were Uploaded`)
     } catch (err) {
@@ -375,8 +376,13 @@ router.post('/category_image' , authenticationRepo.authenticateAdmin , upload.si
         const categoryExist = await categoriesRepo.getCategoryById(category_id);
         if(categoryExist === undefined) return res.status(404).json("Category Doesn't Exist");
         if(categoryExist.image_url) await categoriesRepo.deleteImage(category_id);
-        const image_url = `/uploads/${req.file.filename}`;
-        await categoriesRepo.addImage(category_id , image_url);
+        const file = req.file;
+        if(!file) return res.status(400).json("No Image File Uploaded");
+        const imageValidation = categoriesRepo.validateImageUrl(file.path);
+        if(!imageValidation.valid) return res.status(400).json("Invalid Image URL");
+        const image_url =file.path;
+        const public_id = file.filename; // Assuming the filename is unique and can be used as a public ID
+        await categoriesRepo.addImage(category_id , image_url , public_id);
         return res.status(201).json("Category Image Added");
     }catch(err){
         console.error("Error adding category image", err);
@@ -385,7 +391,7 @@ router.post('/category_image' , authenticationRepo.authenticateAdmin , upload.si
 })
 
 
-router.delete('/category_image/:category_id' , authenticationRepo.authenticateAdmin , upload.single('image') , async(req , res) =>{
+router.delete('/category_image/:category_id' , authenticationRepo.authenticateAdmin , async(req , res) =>{
     try{    
         const {category_id} = req.params;
         const idValidation = commonRepo.validateId(category_id);

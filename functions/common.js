@@ -32,21 +32,7 @@ const runValidation = function(schema , data){
 }
 
 
-const getObjectWithUrl = (obj) => ({...obj , image_url :obj.image_url  ? `${process.env.BACKEND_URL}${obj.image_url}` : null})
-const getArrayWithUrl = (arr) =>{
-    const newArr = arr.map(x =>({
-    ...x ,
-    image_url : x.image_url ?  `${process.env.BACKEND_URL}${x.image_url}` : null
-  }))
-  return newArr
-}
-const getArrayOfUrls = (arr) => arr.map(x =>{
-    return {
-        image_id : x.image_id,
-        image_url : `${process.env.BACKEND_URL}${x.image_url}`
-    }
-})
 
 
 
-    module.exports = {validateId , validateName , getArrayWithUrl , getObjectWithUrl , getArrayOfUrls};
+    module.exports = {validateId , validateName };

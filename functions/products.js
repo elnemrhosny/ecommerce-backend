@@ -1,8 +1,7 @@
 const Joi = require("joi");
 const pool = require("../db");
 const {randomUUID } = require("crypto");
-const fs = require("fs");
-const path = require("path");
+const {cloudinary} = require("../middlewares/upload");
 const commonRepo = require("../functions/common");
 
 const productAddSchema = Joi.object({
@@ -138,8 +137,8 @@ async function getProductById(product_id , user_id) {
   );
   if (products.length === 0) return undefined;
   return {
-    ...commonRepo.getObjectWithUrl(products[0]),
-    images: commonRepo.getArrayOfUrls(images),
+    product : products[0],
+    images: images
   };
 }
 
@@ -175,7 +174,7 @@ async function getProductsByFilter(whereClause, sortColumn, sortOrder, params , 
   const [products] = await pool.query(sql, queryParams);
   if (products.length === 0) return undefined;
 
-  return commonRepo.getArrayWithUrl(products);
+  return products;
 }
 
 async function getCount(whereClause, params) {
@@ -222,58 +221,83 @@ async function deleteProduct(product_id) {
     [product_id],
   );
   if (result.affectedRows === 0) return undefined;
-  return true;
+  return true; 
 }
 
-async function addImage(product_id, image_url) {
+async function addImage(product_id, image_url , public_id) {
   const newId = randomUUID();
   await pool.query(
-    "INSERT INTO product_images (id, product_id, image_url, sort_order) VALUES (UUID_TO_BIN(?), UUID_TO_BIN(?), ?, 0)",
-    [newId, product_id, image_url],
+    "INSERT INTO product_images (id, product_id, image_url, public_id, sort_order) VALUES (UUID_TO_BIN(?), UUID_TO_BIN(?), ?, ?, 0)",
+    [newId, product_id, image_url, public_id],
   );
   return newId;
 }
 
+
+
 async function deleteImage(image_id) {
-  const [images] = await pool.query(
-    "SELECT image_url , BIN_TO_UUID(product_id) as product_id FROM product_images WHERE id = UUID_TO_BIN(?)",
-    [image_id],
+  // 1. Fetch the image being deleted
+  const [rows] = await pool.query(
+    "SELECT id, image_url, public_id, BIN_TO_UUID(product_id) AS product_id FROM product_images WHERE id = UUID_TO_BIN(?)",
+    [image_id]
   );
-  const [main_image_exist] = await pool.query(
+  if (rows.length === 0) return undefined;
+
+  const { image_url, public_id, product_id } = rows[0];
+
+  // 2. Check if it's the main product image
+  const [mainResult] = await pool.query(
     "SELECT image_url FROM products WHERE image_url = ? AND id = UUID_TO_BIN(?)",
-    [images[0].image_url, images[0].product_id],
-  );
-  if (main_image_exist.length !== 0)
-    await pool.query(
-      "UPDATE products SET image_url = NULL WHERE id = UUID_TO_BIN(?)",
-      [images[0].product_id],
-    );
-  // After the SELECT, before the DELETE:
-  const filePath = path.join(
-    __dirname,
-    "../uploads",
-    images[0].image_url.split("/").pop(),
-  );
-  // or construct the full path from the relative URL
-  try {
-    await fs.promises.unlink(filePath);
-  } catch (unlinkErr) {
-    // Log but don't fail the whole deletion if file doesn't exist
-    console.error("Failed to delete file:", unlinkErr);
-  }
-  const [result] = await pool.query(
-    "DELETE FROM product_images WHERE id = UUID_TO_BIN(?)",
-    [image_id],
+    [image_url, product_id]
   );
 
-  if (result.affectedRows === 0) return undefined;
+  // 3. Delete the database row first (we'll adjust main image later if needed)
+  const [deleteResult] = await pool.query(
+    "DELETE FROM product_images WHERE id = UUID_TO_BIN(?)",
+    [image_id]
+  );
+  if (deleteResult.affectedRows === 0) return undefined;
+
+  // 4. If it was the main image, choose a new main image (or clear)
+  if (mainResult.length > 0) {
+    // Fetch remaining images for this product
+    const [remainingImages] = await pool.query(
+      "SELECT image_url, public_id FROM product_images WHERE product_id = UUID_TO_BIN(?) ORDER BY sort_order ASC LIMIT 1",
+      [product_id]
+    );
+
+    if (remainingImages.length > 0) {
+      // Set the first remaining image as the new main image
+      await pool.query(
+        "UPDATE products SET image_url = ?, image_public_id = ? WHERE id = UUID_TO_BIN(?)",
+        [remainingImages[0].image_url, remainingImages[0].public_id, product_id]
+      );
+    } else {
+      // No images left – clear main image fields
+      await pool.query(
+        "UPDATE products SET image_url = NULL, image_public_id = NULL WHERE id = UUID_TO_BIN(?)",
+        [product_id]
+      );
+    }
+  }
+
+  // 5. Delete from Cloudinary
+  if (public_id) {
+    try {
+      await cloudinary.uploader.destroy(public_id);
+    } catch (err) {
+      console.error('Cloudinary delete failed:', err);
+      // continue even if Cloudinary delete fails
+    }
+  }
+
   return true;
 }
 
-async function setMainImage(product_id, image_url) {
+async function setMainImage(product_id, image_url , public_id) {
   const [result] = await pool.query(
-    "UPDATE products SET image_url = ? WHERE id = UUID_TO_BIN(?)",
-    [image_url, product_id],
+    "UPDATE products SET image_url = ? , image_public_id = ? WHERE id = UUID_TO_BIN(?)",
+    [image_url, public_id, product_id],
   );
   if (result.affectedRows === 0) return undefined;
   return true;

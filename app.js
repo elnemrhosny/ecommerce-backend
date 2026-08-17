@@ -32,7 +32,6 @@ app.use(cors({
   credentials: true
 }));
 app.use(cookieParser());
-app.use('/uploads' , express.static('uploads'));
 
 const productsRoute = require("./routes/products");
 const categoriesRoute = require("./routes/categories");

@@ -1,33 +1,22 @@
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
-const path = require('path');
-const {randomUUID} = require('crypto');
 
-//Define storage
-const storage = multer.diskStorage({
-    destination : function(req , file , cb){
-        cb(null , 'uploads/')
-    } , 
-    filename : function (req , file, cb){
-        const uniqueName = randomUUID() + path.extname(file.originalname);
-        cb(null , uniqueName);
-    }
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-
-//File filter : only allow images
-const fileFilter = (req , file , cb) =>{
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLocaleLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    if(mimetype && extname) return cb(null , true);
-    cb(new Error('Only image files are allowed'))
-};
-
-
-const upload = multer({
-    storage : storage , 
-    limits : {fileSize : 5 * 1024 * 1024} ,
-    fileFilter : fileFilter
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'ecommerce-products',   // optional folder in Cloudinary
+    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+    transformation: [{ width: 1000, crop: 'limit' }], // optional resize
+  },
 });
 
-module.exports = upload;
+const upload = multer({ storage: storage });
+
+module.exports = { cloudinary, upload };
