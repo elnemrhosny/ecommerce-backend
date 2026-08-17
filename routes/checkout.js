@@ -44,12 +44,12 @@ function verifyPaymobHMAC(body, hmacReceived) {
     const value = getNested(obj, field);
     return value === null || value === undefined ? '' : String(value);
   }).join('');
-  console.error(concatenated , hmacReceived)
 
   const hmac = crypto
     .createHmac('sha512', process.env.PAYMOB_HMAC_SECRET)
     .update(concatenated)
     .digest('hex');
+    console.error(hmacReceived , concatenated , hmac)
 
   return hmac === hmacReceived;
 }
@@ -95,7 +95,7 @@ router.post('/callback', async (req, res) => {
 
     if (!verifyPaymobHMAC(req.body, hmac)) {
       console.log("hmac verification failed")
-      console.error('Invalid HMAC');
+      console.error('Invalid HMAC' , hmac);
       await ordersRepo.deleteOrderItems(orderId);
       await ordersRepo.deleteOrder(orderId);
       return res.status(400).send('Invalid signature');
