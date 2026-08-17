@@ -9,15 +9,40 @@ const {createIntention , buildPaymobItems} = require('../functions/paymob');
 const crypto = require('crypto');
 
 
+const HMAC_FIELDS = [
+  'amount_cents',
+  'created_at',
+  'currency',
+  'error_occured',
+  'has_parent_transaction',
+  'id',
+  'integration_id',
+  'is_3d_secure',
+  'is_auth',
+  'is_capture',
+  'is_refunded',
+  'is_standalone_payment',
+  'is_voided',
+  'order.id',
+  'owner',
+  'pending',
+  'source_data.pan',
+  'source_data.sub_type',
+  'source_data.type',
+  'success'
+];
+
+function getNested(obj, path) {
+  return path.split('.').reduce((acc, key) => (acc == null ? acc : acc[key]), obj);
+}
+
 function verifyPaymobHMAC(body, hmacReceived) {
   const obj = body.obj;
   if (!obj) return false;
 
-  const keys = Object.keys(obj).sort();
-  const concatenated = keys.map(key => {
-    const value = obj[key];
-    // If value is object (e.g., source_data), stringify it
-    return typeof value === 'object' ? JSON.stringify(value) : String(value);
+  const concatenated = HMAC_FIELDS.map(field => {
+    const value = getNested(obj, field);
+    return value === null || value === undefined ? '' : String(value);
   }).join('');
 
   const hmac = crypto
@@ -27,7 +52,6 @@ function verifyPaymobHMAC(body, hmacReceived) {
 
   return hmac === hmacReceived;
 }
-
 
 // POST /checkout/create-session
 router.post('/create-session', authenticationRepo.authenticateUser, authenticationRepo.cartIdentifier , async (req, res) => {
@@ -66,7 +90,7 @@ router.post('/callback', async (req, res) => {
     const { obj, type, hmac } = req.body;
     const orderId = obj.special_reference;
     const items = obj.items;
-    
+
     if (!verifyPaymobHMAC(req.body, hmac)) {
       console.log("hmac verification failed")
       console.error('Invalid HMAC');
