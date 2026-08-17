@@ -111,7 +111,7 @@ async function clearCart(cart_id){
 
 async function clearCartByOrderId(order_id){
     const [user] =  await pool.query(
-        'SELECT BIN_TO_UUID(user_id) AS user_id FROM orders WHERE order_id = UUID_TO_BIN(?)',
+        'SELECT BIN_TO_UUID(user_id) AS user_id FROM orders WHERE id = UUID_TO_BIN(?)',
         [order_id]
       );
     const cart_id = await getCartIdByUserId(user[0].user_id);

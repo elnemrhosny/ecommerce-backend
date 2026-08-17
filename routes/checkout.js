@@ -88,10 +88,9 @@ router.post('/callback', async (req, res) => {
     try {
     const { obj, type } = req.body;
     const hmac = req.query.hmac;
-    const orderId = obj.special_reference;
+    const orderId = obj.order.merchant_order_id;
     const items = obj.items;
-    const user_id = obj.payment_key_claims?.user_id;
-    console.log('obj : ' , obj)
+    // console.log('obj : ' , obj)
 
     if (!verifyPaymobHMAC(req.body, hmac)) {
       await ordersRepo.deleteOrderItems(orderId);
@@ -101,9 +100,6 @@ router.post('/callback', async (req, res) => {
 
     // Only trust the Transaction Processed callback
     if (type === 'TRANSACTION' && obj.success === true) {
-      const txnId = obj.id;
-      // Update order status to paid
-      console.log('order_id' , orderId)
       await ordersRepo.updatePaymentStatus(orderId, 'paid');
       await cartsRepo.clearCartByOrderId(orderId);
     
