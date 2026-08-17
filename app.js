@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser'); //allows us to use cookies
 require('dotenv').config(); //loads .env file
 const PORT = 8000;
 const app = express();
+app.set('etag' , false);
 
 
 //data required should always be in the body of the request except for GET and DELETE requests it should have the input in the form of a query
