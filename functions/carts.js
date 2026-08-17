@@ -114,7 +114,7 @@ async function clearCartByOrderId(order_id){
         'SELECT BIN_TO_UUID(user_id) AS user_id FROM orders WHERE id = UUID_TO_BIN(?)',
         [order_id]
       );
-    const cart_id = await getCartIdByUserId(user[0].user_id);
+    const {cart_id} = await getCartIdByUserId(user[0].user_id);
     const result = await clearCart(cart_id);
     if(result === undefined) return undefined;
     return true;
