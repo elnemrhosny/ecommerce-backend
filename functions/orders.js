@@ -104,6 +104,17 @@ async function getAllOrders(limit , offset){
    return sortOrders(ordersFinal);
 }
 
+async function deleteOrder(order_id){ //change stock quantities on order success
+    const [result] = await pool.query('DELETE FROM orders WHERE id = UUID_TO_BIN(?)' , [order_id]);
+    if(result.affectedRows === 0) return undefined;
+    return true;
+}
+
+async function deleteOrderItems(order_id){ //change stock quantities on order success
+    const [result] = await pool.query('DELETE FROM order_items WHERE order_id = UUID_TO_BIN(?)' , [order_id]);
+    if(result.affectedRows === 0) return undefined;
+    return true;
+}
 
 
 
@@ -119,5 +130,7 @@ module.exports = {
     updatePaymentStatus , 
     getOrdersByUserId , 
     changeStock , 
-    getAllOrders
+    getAllOrders , 
+    deleteOrder , 
+    deleteOrderItems
 }

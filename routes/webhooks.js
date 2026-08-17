@@ -1,65 +1,41 @@
 const express = require('express');
 const router = express.Router();
-const stripe = require('../config/stripe');
 const pool = require('../db');
 const ordersRepo = require('../functions/orders');
 const cartsRepo = require('../functions/carts');
+const crypto = require('crypto');
 
-// This route must use express.raw() to get the raw body for signature verification
-router.post('/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
 
-  try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  // Handle the event
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
-    const {order_id , cart_id} = session.metadata;
-    if (!order_id || !cart_id) {
-    console.log('Skipping event: No order_id/cart_id in metadata (likely a Stripe test event)');
-    return res.status(200).json({recieved : true });
+function verifyPaymobHMAC(payload, hmacReceived) {
+  const keys = Object.keys(payload).sort();
+  const concatenated = keys.map(key => payload[key]).join('');
+  const hmac = crypto.createHmac('sha512', process.env.PAYMOB_HMAC_SECRET).update(concatenated).digest('hex');
+  return hmac === hmacReceived;
 }
-    console.log('Fulfilling order:', order_id);
-
+router.post('/callback', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
-      // 1. Update order payment status
-      await ordersRepo.updatePaymentStatus(order_id);
-
-      // 2. Get the order's user_id (binary)
-      const [[order]] = await pool.query(
-        'SELECT user_id FROM orders WHERE id = UUID_TO_BIN(?)',
-        [order_id]
-      );
-        if (!order) {
-        console.error('Order not found:', order_id);
-        return res.status(200).json({recieved : true });
-      }
-
-      // 5. Clear the user's cart
-      
-      await cartsRepo.clearCart(cart_id);
-      await ordersRepo.changeStock(order_id);
-      console.log(`Order ${order_id} fulfilled.`);
-      return res.status(200).json({recieved : true  });
-
-    } catch (err) {
-        console.error('Order fulfillment error:', err);
-        return res.status(200).json({recieved : true });
-      
-      // Always return 200 to avoid Stripe retries
+    const { obj, type, hmac } = req.body;
+    if (!verifyPaymobHMAC(req.body, hmac)) {
+      console.error('Invalid HMAC');
+      return res.status(400).send('Invalid signature');
     }
+
+    // Only trust the Transaction Processed callback
+    if (type === 'TRANSACTION' && obj.success === true) {
+      const orderId = obj.special_reference; // or obj.order.id if you stored differently
+      const txnId = obj.id;
+      // Update order status to paid
+      await ordersRepo.updatePaymentStatus(orderId, 'paid');
+      // Move cart items to order_items if not already done
+      // await ordersRepo.createOrderItemsFromCart(orderId);
+      // Clear cart
+      // await cartsRepo.clearCart(orderId);
+    }
+    res.status(200).json({ received: true });
+  } catch (err) {
+    console.error('Webhook error:', err);
+    res.status(500).send('Internal Server Error');
   }
-     return res.status(200).json({recieved : true });
   
 });
 

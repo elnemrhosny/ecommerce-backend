@@ -1,67 +1,87 @@
 // routes/checkout.js
 const express = require('express');
 const router = express.Router();
-const stripe = require('../config/stripe');
 const pool = require('../db');
 const cartsRepo = require('../functions/carts');
 const ordersRepo = require('../functions/orders');
 const authenticationRepo = require('../functions/authentication');
+const {createIntention , buildPaymobItems} = require('../functions/paymob');
+const crypto = require('crypto');
+
+
+function verifyPaymobHMAC(payload, hmacReceived) {
+  const keys = Object.keys(payload).sort();
+  const concatenated = keys.map(key => payload[key]).join('');
+  const hmac = crypto.createHmac('sha512', process.env.PAYMOB_HMAC_SECRET).update(concatenated).digest('hex');
+  return hmac === hmacReceived;
+}
+
 
 // POST /checkout/create-session
 router.post('/create-session', authenticationRepo.authenticateUser, authenticationRepo.cartIdentifier , async (req, res) => {
-  try {
-    const { user_id , email_verified}= req.user;
-    if(!email_verified) return res.status(403).json('Please verify your email');
-    const cart_id = req.cart_id
-
-    // 1. Fetch cart items for the authenticated user
+   try {
+    const user_id = req.user.user_id;
+    const cart_id = req.cart_id;
     const cart = await cartsRepo.getCartById(cart_id);
+    if (!cart || cart.items.length === 0) {
+      return res.status(400).json({ message: 'Cart is empty' });
+    }
+    const paymobItems = buildPaymobItems(cart.items);
 
-    if (cart.items.length === 0) {
-      return res.status(400).json("Cart Is Empty");
+    const order_id = await ordersRepo.createOrder(user_id, cart.total_price);
+    await ordersRepo.createOrderItems(cart , order_id);
+    // 2. Calculate amount in cents (smallest unit). For EGP, 1 pound = 100 piasters.
+    const amountCents = paymobItems.reduce((sum, item) => sum + item.amount * item.quantity, 0);
+
+    // 3. Create intention
+    const intention = await createIntention(order_id, amountCents , paymobItems , req.user);
+    const clientSecret = intention.client_secret;
+
+    // 4. Build the redirect URL (frontend will do this)
+    const redirectUrl = `https://accept.paymob.com/unifiedcheckout/?publicKey=${process.env.PAYMOB_PUBLIC_KEY}&clientSecret=${clientSecret}`;
+
+    return res.json({ clientSecret, redirectUrl, orderId: order_id });
+  } catch (err) {
+    console.error('Paymob intention error:', err.response?.data || err.message);
+    res.status(500).json('Internal Server Error');
+  }
+});
+
+
+router.post('/callback', express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+      console.log("entered callback")
+    const { obj, type, hmac } = req.body;
+    const orderId = obj.special_reference;
+    const items = obj.items;
+    if (!verifyPaymobHMAC(req.body, hmac)) {
+      console.log("hmac verification failed")
+      console.error('Invalid HMAC');
+      await ordersRepo.deleteOrderItems(orderId);
+      await ordersRepo.deleteOrder(orderId);
+      return res.status(400).send('Invalid signature');
     }
 
-    // 2. Prepare line items for Stripe
-    const lineItems = cart.items.map(item => ({
-      price_data: {
-        currency: 'usd',                // change to your currency
-        product_data: { name: item.name },
-        unit_amount:Math.round(Number(item.price) * 100)// Stripe expects cents
-      },
-      quantity: item.quantity,
-    }));
-
-    // 3. Create a new order in your DB with status 'pending'
-    const order_id = await ordersRepo.createOrder(user_id , cart.total_price);
-    if(order_id === undefined) return res.status(500).json("Order Creation Failed Please Contact Your Adminstrator");
-    // 4. Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      mode: 'payment',
-      line_items: lineItems,
-      success_url: `${process.env.CLIENT_URL}/order-success`,
-      cancel_url: `${process.env.CLIENT_URL}/cart`,
-      metadata: {
-        order_id: order_id, 
-        cart_id : cart_id  // to link webhook with your order
-      },
-    });
-
-    // 5. Save the Stripe session ID in your order (optional but helpful for debugging)
-    await pool.query(
-      'UPDATE orders SET payment_method = ? WHERE id = UUID_TO_BIN(?)',
-      [session.id, order_id]
-    );
-
-    await ordersRepo.createOrderItems(cart , order_id);
-    const orderItems = await ordersRepo.getOrderItems(order_id);
-    // 6. Return the checkout URL to the frontend
-    return res.json({url: session.url , orderItems});
-
+    // Only trust the Transaction Processed callback
+    if (type === 'TRANSACTION' && obj.success === true) {
+      console.log("payment successfull")
+      const txnId = obj.id;
+      // Update order status to paid
+      await ordersRepo.updatePaymentStatus(orderId, 'paid');
+      await cartsRepo.clearCart(orderId);
+    
+    }else{
+      console.log("payment failed");
+      await ordersRepo.deleteOrderItems(orderId);
+      await ordersRepo.deleteOrder(orderId);
+      return res.status(402).json('Payment failed')
+    }
+    res.status(200).json({ received: true });
   } catch (err) {
-    console.error('Checkout error:', err);
-    res.status(500).json("Internal Server Error");
+    console.error('Webhook error:', err);
+    res.status(500).send('Internal Server Error');
   }
+  
 });
 
 module.exports = router;
