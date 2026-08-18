@@ -17,7 +17,7 @@ app.set('etag' , false);
 const webhookRouter = require('./routes/webhooks');
 app.use('/webhooks' , webhookRouter)
 app.use(express.json());
-const allowedOrigins = [process.env.CLIENT_URL , "http://localhost:5173"]
+const allowedOrigins = [process.env.CLIENT_URL , "http://localhost:5173" , "http://192.168.1.16:5173"]
 app.use(cors({
   origin: function (origin, callback) {
     // allow requests with no origin (like curl, mobile apps, server-to-server)

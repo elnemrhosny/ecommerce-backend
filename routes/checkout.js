@@ -90,7 +90,6 @@ router.post('/callback', async (req, res) => {
     const hmac = req.query.hmac;
     const orderId = obj.order.merchant_order_id;
     const items = obj.items;
-    // console.log('obj : ' , obj)
 
     if (!verifyPaymobHMAC(req.body, hmac)) {
       await ordersRepo.deleteOrderItems(orderId);
@@ -102,6 +101,7 @@ router.post('/callback', async (req, res) => {
     if (type === 'TRANSACTION' && obj.success === true) {
       await ordersRepo.updatePaymentStatus(orderId, 'paid');
       await cartsRepo.clearCartByOrderId(orderId);
+      await ordersRepo.changeStock(orderId);
     
     }else{
       await ordersRepo.deleteOrderItems(orderId);
