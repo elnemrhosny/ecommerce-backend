@@ -14,8 +14,6 @@ app.set('etag' , false);
 //                                  data : this can be an array or object or null if we dont need to send data like deleting a product,
 //                                  messages :[] this is an array of messages on faluire to know exactly why the api call failed
 //}
-const webhookRouter = require('./routes/webhooks');
-app.use('/webhooks' , webhookRouter)
 app.use(express.json());
 const allowedOrigins = [process.env.CLIENT_URL , "http://localhost:5173" , "http://192.168.1.16:5173"]
 app.use(cors({
