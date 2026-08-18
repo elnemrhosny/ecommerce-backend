@@ -31,6 +31,7 @@ app.use(cors({
 }));
 app.use(cookieParser());
 
+
 const productsRoute = require("./routes/products");
 const categoriesRoute = require("./routes/categories");
 const usersRoute = require("./routes/users");
