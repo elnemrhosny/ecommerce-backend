@@ -78,7 +78,7 @@ router.patch('/' , authenticationRepo.cartIdentifier  , async (req , res )=>{
         const itemExist = await cartsRepo.getItemById(item_id , cart_id );
         if(itemExist === undefined) return res.status(404).json("Item Doesn't Exist In Cart");
         const quantityCheck = await productsRepo.getProductById(itemExist.product_id);
-        if(quantity > quantityCheck.stock) return res.status(400).json("Quantity Exceeded Stock");
+        if(quantity > quantityCheck.product.stock) return res.status(400).json("Quantity Exceeded Stock");
         const result = await cartsRepo.updateQuantity(item_id , cart_id , quantity);
         if(result === undefined) return res.status(500).json("Please Contact Your Administrator");
         const cart = await cartsRepo.getCartById(cart_id);

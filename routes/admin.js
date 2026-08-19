@@ -405,6 +405,81 @@ router.delete('/category_image/:category_id' , authenticationRepo.authenticateAd
         console.error("Error deleting category image", err);
       return res.status(500).json("Internal Server Error");
     }
+});
+
+
+router.get('/orders' , authenticationRepo.authenticateAdmin , async(req , res)=>{ //return orders by filter
+    try{
+        const {
+          sort_by , 
+          sort_order ,
+          limit , 
+          offset , 
+          order_status , 
+          payment_status , 
+          user_email
+        } = req.query;
+    const allowedSort = ['created_at' , 'total_amount'];
+    const allowedOrderStatus = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+    const allowedPaymentStatus = ['paid', 'pending', 'failed', 'refunded'];
+    const conditions = [];
+    const params = [];
+    if(sort_by && !allowedSort.includes(sort_by)) return res.status(400).json("Invalid Sort By Parameter");
+    if(order_status && !allowedOrderStatus.includes(order_status)) return res.status(400).json("Invalid Order Status Parameter");
+    if(payment_status && !allowedPaymentStatus.includes(payment_status)) return res.status(400).json("Invalid Payment Status Parameter");
+    if(order_status) conditions.push(`order_status = ?`) , params.push(order_status);
+    if(payment_status) conditions.push(`payment_status = ?`) , params.push(payment_status);
+    const sortColumn = allowedSort.includes(sort_by) ? sort_by : 'created_at'; // default newest first if sort_by is undefined
+    const sortOrder = sort_order && sort_order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC'; //default is sorting in descending order if user didnt specify
+    const pageLimit = Math.min(Math.max(parseInt(limit, 10) || 12, 1), 100); //limits the number of orders sent to min 1 and max 100
+    const pageOffset = Math.max(parseInt(offset, 12) || 0, 0);//makes sure the if the offset is undefined default it to 10
+    const whereClause = conditions.length > 0  //if atleast 1 condition exists write WHERE and join the conditions in a string else dont use where
+      ? 'WHERE ' + conditions.join(' AND ') 
+      : '';
+    const orders = await ordersRepo.getOrdersByFilter(whereClause , sortColumn , sortOrder , params , pageLimit , pageOffset , user_email);
+    if(user_email && orders === undefined) return res.status(404).json("User Doesn't Exist");
+    const count = await ordersRepo.getCount(whereClause , params , user_email);
+    return res.status(200).json({orders , count});
+    }catch(err){
+        console.error("Error getting orders of user" , err);
+        return res.status(500).json("Internal Server Error");
+    }
 })
+
+router.patch('/orders/order_status' , authenticationRepo.authenticateAdmin , async(req , res)=>{
+    try{
+        const {order_id , order_status} = req.body;
+        console.log("Updating Order Status" , order_id , order_status);
+        const idValidation = commonRepo.validateId(order_id);
+        if(!idValidation.valid) return res.status(400).json("Order ID Is Invalid");
+        const allowedOrderStatus = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+        if(!allowedOrderStatus.includes(order_status)) return res.status(400).json("Invalid Order Status Parameter");
+        const order = await ordersRepo.getOrderById(order_id);
+        if(order === undefined) return res.status(404).json("Order Doesn't Exist");
+        await ordersRepo.updateOrderStatus(order_id , order_status);
+        return res.status(200).json("Order Status Updated");
+      }catch(err){
+        console.error("Error updating order status" , err);
+        return res.status(500).json("Internal Server Error");
+      }
+});
+
+router.patch('/orders/payment_status' , authenticationRepo.authenticateAdmin , async(req , res)=>{
+    try{
+        const {order_id , payment_status} = req.body;
+        const idValidation = commonRepo.validateId(order_id);
+        if(!idValidation.valid) return res.status(400).json("Order ID Is Invalid");
+        const allowedPaymentStatus = ['paid', 'pending', 'failed', 'refunded'];
+        if(!allowedPaymentStatus.includes(payment_status)) return res.status(400).json("Invalid Payment Status Parameter");
+        const order = await ordersRepo.getOrderById(order_id);
+        if(order === undefined) return res.status(404).json("Order Doesn't Exist");
+        await ordersRepo.updatePaymentStatus(order_id , payment_status);
+        return res.status(200).json("Payment Status Updated");
+      }catch(err){
+        console.error("Error updating payment status" , err);
+        return res.status(500).json("Internal Server Error");
+      }
+});
+    
 
 module.exports = router;

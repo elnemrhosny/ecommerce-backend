@@ -119,7 +119,7 @@ async function registerUser(user){
 }
 
 async function getUserById(user_id){
-    const [result] = await pool.query('SELECT BIN_TO_UUID(id) as user_id , name , email , role , auth_provider , email_verified FROM users WHERE id = UUID_TO_BIN(?)' , user_id);
+    const [result] = await pool.query('SELECT BIN_TO_UUID(id) as user_id , name , email , role , auth_provider , email_verified FROM users WHERE id = UUID_TO_BIN(?)' , [user_id]);
     if(result.length === 0) return undefined;
     return result[0];
 }

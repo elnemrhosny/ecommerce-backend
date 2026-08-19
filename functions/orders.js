@@ -1,5 +1,6 @@
 const {randomUUID} = require('crypto');
 const pool = require('../db')
+const usersRepo = require('./users');
 
 
 const calculateTotalPrice = function(items){
@@ -48,12 +49,25 @@ async function getOrderItems(order_id){
    const [result] = await pool.query('SELECT BIN_TO_UUID(id) AS orderitem_id, BIN_TO_UUID(order_id) AS order_id, BIN_TO_UUID(product_id) AS product_id, product_name, product_price, product_image_url , quantity , subtotal AS total_price FROM order_items WHERE order_id = UUID_TO_BIN(?)' , [order_id]);
    return result;
 }
+async function getOrderById(order_id){
+   const [result] = await pool.query('SELECT BIN_TO_UUID(id) AS order_id, BIN_TO_UUID(user_id) AS user_id, total_amount, order_status, payment_status, shipping_address, created_at FROM orders WHERE id = UUID_TO_BIN(?)' , [order_id]);
+   if(result.length === 0) return undefined;
+   return result[0];
+}
 
 
-async function updatePaymentStatus(order_id){
+async function updatePaymentStatus(order_id , status = 'paid'){
     await pool.query(
         'UPDATE orders SET payment_status = ? WHERE id = UUID_TO_BIN(?)',
-        ['paid', order_id]
+        [status, order_id]
+      );
+
+}
+
+async function updateOrderStatus(order_id , status = 'confirmed'){
+    await pool.query(
+        'UPDATE orders SET order_status = ? WHERE id = UUID_TO_BIN(?)',
+        [status, order_id]
       );
 
 }
@@ -115,16 +129,75 @@ async function deleteOrderItems(order_id){ //change stock quantities on order su
     if(result.affectedRows === 0) return undefined;
     return true;
 }
+ 
+async function getCount(whereClause, params , user_email) {
+     let user_id = null;
+    let userClause = '';
+    if(user_email){
+        const user = await usersRepo.getUserByEmail(user_email);
+        if(user === undefined) return undefined; //if user not found return 0 count
+        user_id = user?.user_id;
+        userClause = user_id ? 'AND user_id = UUID_TO_BIN(?)' : 'AND 1=0'; //if user not found return empty result
+    }
+    if(user_id) params.push(user_id);
+  const [[{ count }]] = await pool.query(
+    `SELECT COUNT(*) AS count FROM orders ${whereClause} ${userClause}`,
+    params,
+  );
+  return count;
+}
 
 
+async function getOrdersByFilter(whereClause, sortColumn, sortOrder, params , limit , offset , user_email) {
+    let user_id = null;
+    let userClause = '';
+    if(user_email){
+        const user = await usersRepo.getUserByEmail(user_email);
+        if(user === undefined) return undefined; //if user not found return empty result
+        user_id = user?.user_id;
+        userClause = user_id ? 'AND user_id = UUID_TO_BIN(?)' : 'AND 1=0'; //if user not found return empty result
+    }
+  const sql = `
+      SELECT 
+        BIN_TO_UUID(id) AS order_id,
+        order_status,
+        BIN_TO_UUID(user_id) AS user_id,
+        payment_status,
+        total_amount,
+        created_at
+      FROM orders
+      ${whereClause} ${userClause}
+      ORDER BY ${sortColumn} ${sortOrder}
+      LIMIT ? OFFSET ?
+    `;
+    const queryParams = [];
+    queryParams.push(...params);
+    if(user_id) queryParams.push(user_id); 
+    queryParams.push(limit, offset);
+  const [orders] = await pool.query(sql, queryParams);
+  const ordersFinal = await Promise.all(orders.map(async (x) => {
+    const [orderItems, user] = await Promise.all([
+        getOrderItems(x.order_id),
+        usersRepo.getUserById(x.user_id),
+    ]);
+    return { ...x, user, items: orderItems };
+}));
 
+  return ordersFinal || [];
+}
 
+async function getPaymentStatus(order_id){
+    const [result] = await pool.query('SELECT payment_status FROM orders WHERE id = UUID_TO_BIN(?)' , [order_id]);
+    if(result.length === 0) return undefined;
+    return result[0].payment_status;
+}
 
 
 
 module.exports = {
     calculateTotalPrice,
     createOrder , 
+    getOrderById ,
     createOrderItems , 
     getOrderItems , 
     updatePaymentStatus , 
@@ -132,5 +205,9 @@ module.exports = {
     changeStock , 
     getAllOrders , 
     deleteOrder , 
-    deleteOrderItems
+    deleteOrderItems , 
+    getCount , 
+    getOrdersByFilter , 
+    updateOrderStatus , 
+    getPaymentStatus
 }

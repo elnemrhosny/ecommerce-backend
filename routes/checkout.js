@@ -96,7 +96,8 @@ router.post('/callback', async (req, res) => {
       await ordersRepo.deleteOrder(orderId);
       return res.status(400).send('Invalid signature');
     }
-
+    console.log('Webhook received:', req.body);
+    console.log(type === 'TRANSACTION' && obj.success === true);
     // Only trust the Transaction Processed callback
     if (type === 'TRANSACTION' && obj.success === true) {
       await ordersRepo.updatePaymentStatus(orderId, 'paid');

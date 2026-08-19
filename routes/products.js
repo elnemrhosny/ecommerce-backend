@@ -11,7 +11,7 @@ const router = express.Router();
 
 router.get('/' , authenticationRepo.optionalAuth,async(req ,res) =>{ //filter products depending on query  returns default 10 products if limit is not provided
     try{
-        const {
+        const { 
       product_id,
       search, //search in product name or description
       category_id, //search bt category uuid
@@ -96,13 +96,6 @@ router.get('/' , authenticationRepo.optionalAuth,async(req ,res) =>{ //filter pr
     // --- Pagination ---
     const pageLimit = Math.min(Math.max(parseInt(limit, 10) || 12, 1), 100); //limits the number of products sent to min 1 and max 100
     const pageOffset = Math.max(parseInt(offset, 12) || 0, 0);//makes sure the if the offset is undefined default it to 10
-      
-    // --- Execute query ---
-    
-      
-
-     // Add pagination params
-        
         const products = await productsRepo.getProductsByFilter(whereClause , sortColumn , sortOrder , params , user_id , pageLimit , pageOffset);
         if(products === undefined) return res.status(200).json([])
         const count = await productsRepo.getCount(whereClause , params);

@@ -22,7 +22,7 @@ const authenticateUser = async function(req , res , next){ //middleware to authe
 }
 }
 
-const optionalAuth = async function(req , res , next){ //middleware to authenticate user 
+const optionalAuth = async function(req , res , next){ //middleware to only check if user is logged in without returning error if not logged in , if logged in it will set req.user to user info else null
     const token = req.cookies.token;
     if(token){
          try{
