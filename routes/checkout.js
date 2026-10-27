@@ -103,7 +103,7 @@ router.post('/callback', async (req, res) => {
       await ordersRepo.updatePaymentStatus(orderId, 'paid');
       await cartsRepo.clearCartByOrderId(orderId);
       await ordersRepo.changeStock(orderId);
-    
+
     }else{
       await ordersRepo.deleteOrderItems(orderId);
       await ordersRepo.deleteOrder(orderId);
@@ -114,7 +114,7 @@ router.post('/callback', async (req, res) => {
     console.error('Webhook error:', err);
     res.status(500).send('Internal Server Error');
   }
-  
+
 });
 
 module.exports = router;

@@ -195,14 +195,14 @@ router.post(
         const product = await productsRepo.getProductById(product_id);
         if(product === undefined) return res.status(404).json("Product Doesn't Exist");
         //insert each uploaded file patch into product_images
-        const hasMainImage = product.product.image_url;
+        let hasMainImage = Boolean(product.product.image_url);
         const images = req.files;
         for(const file of images){
             const image_url = file.path;
             const public_id = file.filename; // Assuming the filename is unique and can be used as a public ID
             if(!hasMainImage){
               await productsRepo.setMainImage(product_id , image_url , public_id);
-              product.image_url = image_url;
+              hasMainImage = true;
             }
             await productsRepo.addImage(product_id , image_url , public_id);
         }
@@ -233,6 +233,9 @@ router.delete(
           .json("Product Doesn't Exist");
       return res.status(200).json("Product Deleted");
     } catch (err) {
+      if (err.code === "ER_ROW_IS_REFERENCED_2" || err.code === "ER_ROW_IS_REFERENCED") {
+        return res.status(409).json("This product is referenced by other records and cannot be deleted. Deactivate it instead.");
+      }
       console.error("Error deleting Product", err);
       return res.status(500).json("Internal Server Error");
     }

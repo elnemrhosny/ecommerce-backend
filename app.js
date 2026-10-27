@@ -24,7 +24,9 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(new Error('Not allowed by CORS'));
+      const error = new Error('Not allowed by CORS');
+      error.status = 403;
+      callback(error);
     }
   },
   credentials: true
@@ -50,11 +52,7 @@ app.use('/reviews' , reviewsRoute);
 app.use('/orders' , ordersRoute);
 app.use('/checkout' , checkoutRoute);
 app.use('/admin' , adminRoute);
-app.use((err, req, res, next) => {
-  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
-    return res.status(400).json({valid : false ,data : null , messages: ['Invalid JSON in request body. Please check your syntax.'] });
-  }
-});
+app.use(require('./middlewares/errorHandler'));
 
 
 

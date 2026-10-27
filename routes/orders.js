@@ -16,7 +16,7 @@ router.get('/' , authenticationRepo.authenticateUser , async(req , res)=>{ //ret
     }
 });
 
-router.get('/payment_status' , authenticationRepo.authenticateUser , async(req , res)=>{ //return order by user
+router.get('/payment_status' , authenticationRepo.authenticateUser , async(req , res)=>{
     try{
         const {order_id} = req.query;
         const idValidation = commonRepo.validateId(order_id);

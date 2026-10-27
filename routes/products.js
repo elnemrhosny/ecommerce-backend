@@ -95,11 +95,10 @@ router.get('/' , authenticationRepo.optionalAuth,async(req ,res) =>{ //filter pr
 
     // --- Pagination ---
     const pageLimit = Math.min(Math.max(parseInt(limit, 10) || 12, 1), 100); //limits the number of products sent to min 1 and max 100
-    const pageOffset = Math.max(parseInt(offset, 12) || 0, 0);//makes sure the if the offset is undefined default it to 10
+    const pageOffset = Math.max(parseInt(offset, 10) || 0, 0);//makes sure the if the offset is undefined default it to 10
         const products = await productsRepo.getProductsByFilter(whereClause , sortColumn , sortOrder , params , user_id , pageLimit , pageOffset);
-        if(products === undefined) return res.status(200).json([])
         const count = await productsRepo.getCount(whereClause , params);
-          return res.status(200).json({products , count});
+          return res.status(200).json({products: products || [], count});
     } catch(err){
         console.error("Error Fetching Products"  , err);
         res.status(500).json("Internal Server Error");
