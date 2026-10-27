@@ -146,7 +146,6 @@ router.post('/google' , async (req , res) =>{
 
 router.patch('/password', authenticationRepo.authenticateUser  , async(req,res)=>{ //updates users password , requires old password , new password , and confirm new password
     try{
-        console.log(req.body)
         const {password , new_password , confirm_password} = req.body;
         const passwordsValidation = usersRepo.validateUpdatePassword({password , new_password , confirm_password}); //validate params meet the criteria
         if(!passwordsValidation.valid) return res.status(400).json("Information Provided Is Invalid Please Try Again")
@@ -157,7 +156,7 @@ router.patch('/password', authenticationRepo.authenticateUser  , async(req,res)=
         const passwordMatch = await bcrypt.compare(password ,hashPassword);//compare
         if(!passwordMatch) return res.status(400).json("Your Password Is Incorrect");
         const result = await usersRepo.updatePassword(user_id , new_password);
-        if(result === undefined) res.status(500).json('Something Went Wrong Please Contact Your Administrator');
+        if(result === undefined) return res.status(500).json('Something Went Wrong Please Contact Your Administrator');
         return res.status(200).json(req.user);
     }catch(err){
             console.error("Error changing password user" , err);
